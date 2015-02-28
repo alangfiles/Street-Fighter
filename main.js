@@ -1,10 +1,11 @@
-var game = new Phaser.Game(600, 300, Phaser.AUTO, 'gameDiv', { preload: preload, create: create, update: update });
+var game = new Phaser.Game(600, 224, Phaser.AUTO, 'gameDiv', { preload: preload, create: create, update: update });
 
 function preload(){
   game.load.image('hadouken', 'assets/hadouken.png');
 //  game.load.image('ryu', 'assets/ryu.png');
   game.load.image('enemy', 'assets/enemy.png');  
-  game.load.spritesheet('ryu', 'assets/ryu80x108.png',80,108);
+  game.load.spritesheet('ryu', 'assets/RyuSpriteMap125x135.png',125,135);
+    game.load.image('background', 'assets/levels/sf2hf-ryu.gif');
     
     hadoukenKey = game.input.keyboard.addKey(Phaser.Keyboard.Z);
     shoryukenKey = game.input.keyboard.addKey(Phaser.Keyboard.C);
@@ -16,15 +17,22 @@ var numberHadoukens = 0, numberEnemies=0;
 var ryuAnim;
 
 function create(){ 
+    
+  background = game.add.tileSprite(0, 0, 657, 224, "background");
+    
   game.physics.startSystem(Phaser.Physics.ARCADE);
   ryu = game.add.sprite(10,200, 'ryu', 1);
-  enemy = game.add.sprite(500, 200, 'enemy');
   game.physics.arcade.enable(ryu);
   ryu.body.collideWorldBounds = true;
   ryu.body.gravity.y = GRAVITY_CONST;
+    ryu.body.width=70;
+    ryu.body.height=150;
+    
+  enemy = game.add.sprite(500, 200, 'enemy');    
   game.physics.arcade.enable(enemy);
   enemy.body.collideWorldBounds = true;
   enemy.body.gravity.y = GRAVITY_CONST;
+  enemy.body.height=122;
   numberEnemies++;
   enemyTime = game.time.now;
     
@@ -33,6 +41,7 @@ function create(){
   ryu.animations.add('forwards', [12,13,14,15,16,17], 8, true, true);
   ryu.animations.add('jump', [18,19,20,21,22,23], 8, true, true);
   ryu.animations.add('shoryuken', [24,25,26,27,28,29], 8, true, true);
+  ryu.animations.add('hadouken', [30,31,32,33,34,35], 8, true, true);
   ryu.animations.play('stand', 8, true);
   cursor = game.input.keyboard.createCursorKeys();
 
@@ -59,6 +68,7 @@ function addEnemy(){
         game.physics.arcade.enable(enemy);
         enemy.body.collideWorldBounds = true;
         enemy.body.gravity.y = GRAVITY_CONST;
+        enemy.body.height=122;
         numberEnemies++;
         enemyTime = game.time.now;
     }
@@ -66,37 +76,40 @@ function addEnemy(){
 
 function checkRyuMotion(){
     
-    //velocity: x
-    if (cursor.right.isDown){
-        ryu.body.velocity.x = 60;
-        if(ryu.body.onFloor()){
-            ryu.animations.play('forwards', 8, true);
+    if(game.time.now > moveTimer)//you can't move when doing a special move.
+    {
+        //velocity: x
+        if (cursor.right.isDown){
+            ryu.body.velocity.x = 80;
+            if(ryu.body.onFloor()){
+                ryu.animations.play('forwards', 8, true);
+            }
         }
-    }
-    else if(cursor.left.isDown){
-        ryu.body.velocity.x = -60;
-        if(ryu.body.onFloor()){
-            ryu.animations.play('backwards', 8, true);
+        else if(cursor.left.isDown){
+            ryu.body.velocity.x = -60;
+            if(ryu.body.onFloor()){
+                ryu.animations.play('backwards', 8, true);
+            }
         }
-    }
-    else{
-        ryu.body.velocity.x = 0;
-        
-        if(ryu.body.onFloor()){
-            ryu.animations.play('stand', 8, true);
+        else{
+            ryu.body.velocity.x = 0;
+
+            if(ryu.body.onFloor()){
+                ryu.animations.play('stand', 8, true);
+            }
         }
-    }
-    
-    //velocity: y
-    if(cursor.down.isDown){
-        //duck
-    }
-    else if(cursor.up.isDown
-           && game.time.now > jumpTimer){
-        //jump
-        ryu.body.velocity.y = -240;
-        ryu.animations.play('jump', 6, true);
-        jumpTimer = game.time.now + JUMP_TIME_LIMIT;
+
+        //velocity: y
+        if(cursor.down.isDown){
+            //duck
+        }
+        else if(cursor.up.isDown
+               && game.time.now > jumpTimer){
+            //jump
+            ryu.body.velocity.y = -240;
+            ryu.animations.play('jump', 6, true);
+            jumpTimer = game.time.now + JUMP_TIME_LIMIT;
+        }
     }
     
 }
@@ -106,7 +119,9 @@ function checkFireBall(){
        && numberHadoukens < MAX_HADOUKENS
        && game.time.now > moveTimer 
        && ryu.body.onFloor()){ //can only throw hadoukens on the ground
-        hadouken = game.add.sprite((ryu.body.x + 60),225, 'hadouken');  
+        ryu.animations.play('hadouken', 10, true);
+        ryu.body.velocity.x=-10; //a little pushback
+        hadouken = game.add.sprite((ryu.body.x + 60), ryu.body.y + 60, 'hadouken');  
         game.physics.arcade.enable(hadouken);
         hadouken.body.velocity.x = 100;
         hadouken.body.collideWorldBounds = true;
@@ -122,6 +137,7 @@ function checkShoryuken(){
       && ryu.body.onFloor()){
         if(ryu.body.onFloor()){
             ryu.body.velocity.y = -180;
+            ryu.body.velocity.x = 60;
             ryu.animations.play('shoryuken', 6, true);
             moveTimer = game.time.now + HADOUKEN_TIME_LIMIT;
             shoryukenActiveTime = game.time.now + SHORYUKEN_ATTACK_TIME;
