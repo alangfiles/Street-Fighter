@@ -10,9 +10,24 @@ function preload(){
   shoryukenKey = game.input.keyboard.addKey(Phaser.Keyboard.C);
 }
 
-var ryu, isRyuAlive=true, enemy, hadouken, cursor, moveTimer=0, jumpTimer=0, shoryukenActiveTime=0, enemyTime=0, numberHadoukens=0, numberEnemies=0;
-var MAX_HADOUKENS = 2, 
+var ryu, 
+    isRyuAlive=true, 
+    enemy, 
+    hadouken, 
+    cursor, 
+    moveTimer=0,
+    moveDelay=0,
+    jumpTimer=0, 
+    shoryukenActiveTime=0, 
+    enemyTime=0, 
+    ememiesDefeated=0,
+    emeniesInLevel=10,
+    numberHadoukens=0, 
+    numberEnemies=0;
+
+var MAX_HADOUKENS = 1, 
     HADOUKEN_TIME_LIMIT = 500, 
+    MOVE_RECOVERY = 800,
     SHORYUKEN_ATTACK_TIME=700, 
     JUMP_TIME_LIMIT = 2000, 
     GRAVITY_CONST = 300, 
@@ -53,16 +68,28 @@ function create(){
 }
     
 function update(){
-    enemy.body.velocity.x = -50;
-    
-    checkRyuMotion();
-    checkSpecialMoves();
-    
-    addEnemy();
+    if(isRyuAlive){
+        enemy.body.velocity.x = -50;
 
-    game.physics.arcade.collide(enemy, ryu, ryuEnemyCollision, null, null);
-    game.physics.arcade.collide(hadouken, enemy, hadoukenEnemy, null, null);
-    game.physics.arcade.collide(hadouken, game.world.bounds, hadoukenEnemy, null, null);
+        checkRyuMotion();
+        checkSpecialMoves();
+        drawLifeBar();
+
+        addEnemy();
+
+        game.physics.arcade.collide(enemy, ryu, ryuEnemyCollision, null, null);
+        game.physics.arcade.collide(hadouken, enemy, hadoukenEnemy, null, null);
+        game.physics.arcade.collide(hadouken, game.world.bounds, hadoukenEnemy, null, null);
+    }
+    else{
+        //Game Over
+        var style = { font: "65px Arial", fill: "#ffff00", align: "center" };
+
+        var text = game.add.text(game.world.centerX, game.world.centerY, "Game Over", style);
+
+        text.anchor.set(0.5);
+        text.setShadow(1, 1, 'rgba(0,0,0,0.2)', 1);
+    }
 }
 
 function addEnemy(){
@@ -78,10 +105,13 @@ function addEnemy(){
     }
 }
 
+function drawLifeBar(){
+    
+}
+
 function checkRyuMotion(){
     
-    if(isRyuAlive 
-       && game.time.now > moveTimer)//you can't move when doing a special move.
+    if(game.time.now > moveTimer)//you can't move when doing a special move.
     {
         //velocity: x
         if (cursor.right.isDown){
@@ -104,16 +134,17 @@ function checkRyuMotion(){
             }
         }
 
-        //velocity: y
-        if(cursor.down.isDown){
-            ryu.animations.play('crouch', 8, true);
-        }
-        else if(cursor.up.isDown
-               && game.time.now > jumpTimer){
-            //jump
-            ryu.body.velocity.y = -240;
-            ryu.animations.play('jump', 6, true);
-            jumpTimer = game.time.now + JUMP_TIME_LIMIT;
+        if(game.time.now > moveDelay){
+            //velocity: y
+            if(cursor.down.isDown && game.time.now > jumpTimer){
+                ryu.animations.play('crouch', 8, true);
+            }
+            else if(cursor.up.isDown && game.time.now > jumpTimer && game.time.now > moveDelay){
+                //jump
+                ryu.body.velocity.y = -240;
+                ryu.animations.play('jump', 6, true);
+                jumpTimer = game.time.now + JUMP_TIME_LIMIT;
+            }
         }
     }
     
@@ -121,18 +152,19 @@ function checkRyuMotion(){
 
 function checkSpecialMoves(){
     
-    if( ryu.body.onFloor()
-       && game.time.now > moveTimer){
+    if( ryu.body.onFloor() && game.time.now > moveTimer){
         //hadouken check
         if(hadoukenKey.isDown && numberHadoukens < MAX_HADOUKENS){
+            
             ryu.animations.play('hadouken', 10, true);
-            ryu.body.velocity.x=-10; //a little pushback
+            ryu.body.velocity.x=-50; //a little pushback
             hadouken = game.add.sprite((ryu.body.x + 60), ryu.body.y + 60, 'hadouken');  
             game.physics.arcade.enable(hadouken);
             hadouken.body.velocity.x = 100;
             hadouken.body.collideWorldBounds = true;
             numberHadoukens++;
             moveTimer = game.time.now + HADOUKEN_TIME_LIMIT;
+            moveDelay = game.time.now + HADOUKEN_TIME_LIMIT + MOVE_RECOVERY;
         }
         
         //shoryuken check
@@ -141,6 +173,7 @@ function checkSpecialMoves(){
             ryu.body.velocity.x = 60;
             ryu.animations.play('shoryuken', 6, true);
             moveTimer = game.time.now + HADOUKEN_TIME_LIMIT;
+            moveDelay = game.time.now + HADOUKEN_TIME_LIMIT + MOVE_RECOVERY;
             shoryukenActiveTime = game.time.now + SHORYUKEN_ATTACK_TIME;
         }
     }
@@ -148,16 +181,17 @@ function checkSpecialMoves(){
 
 
 function hadoukenEnemy(){
-    enemy.kill();
-    numberEnemies--;
-    hadouken.kill();
-    numberHadoukens--;
+    enemy.kill(); ememiesDefeated++; numberEnemies--;
+    hadouken.kill(); numberHadoukens--;
+}
+
+function hadoukenHitsWorldBound(){
+    hadouken.kill(); numberHadoukens--;
 }
 
 function ryuEnemyCollision(){
     if(game.time.now < shoryukenActiveTime){ //ryu in shoryuken
-        enemy.kill();
-        numberEnemies--;
+        enemy.kill(); ememiesDefeated++; numberEnemies--;
     }
     else{
         gameOver();
